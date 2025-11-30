@@ -1,0 +1,71 @@
+// This is your Prisma schema file.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // ❌ REMOVE URL — Prisma 7 does not allow URL here
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  businessName  String
+  gstin         String?
+  address       String?
+  createdAt     DateTime  @default(now())
+  clients       Client[]
+  invoices      Invoice[]
+}
+
+model Client {
+  id            String    @id @default(uuid())
+  name          String
+  email         String
+  phone         String?
+  gstin         String?
+  billingAddress String
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  invoices      Invoice[]
+  createdAt     DateTime  @default(now())
+}
+
+model Invoice {
+  id               String    @id @default(uuid())
+  invoiceNumber    String    @unique
+  date             DateTime
+  dueDate          DateTime
+  clientId         String
+  client           Client    @relation(fields: [clientId], references: [id])
+  userId           String
+  user             User      @relation(fields: [userId], references: [id])
+  items            InvoiceItem[]
+  subtotal         Float
+  taxAmount        Float
+  totalAmount      Float
+  status           String    @default("unpaid")
+  paidDate         DateTime?
+  razorpayOrderId  String?
+  razorpayPaymentId String?
+  pdfUrl           String?
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model InvoiceItem {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  hsnSac      String
+  quantity    Int
+  rate        Float
+  taxRate     Float
+  amount      Float
+}
