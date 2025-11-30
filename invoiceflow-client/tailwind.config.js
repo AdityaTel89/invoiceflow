@@ -1,0 +1,157 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        // Primary Colors
+        'violet-blue': {
+          DEFAULT: '#844fc1',
+          50: '#f5f0fa',
+          100: '#ebe0f5',
+          200: '#d7c1eb',
+          300: '#c3a2e1',
+          400: '#af83d7',
+          500: '#844fc1',
+          600: '#6a3f9a',
+          700: '#4f2f73',
+          800: '#35204d',
+          900: '#1a1026',
+        },
+        'dodger-blue': {
+          DEFAULT: '#1e90ff',
+          50: '#e6f4ff',
+          100: '#cce9ff',
+          200: '#99d3ff',
+          300: '#66bdff',
+          400: '#33a7ff',
+          500: '#1e90ff',
+          600: '#0073e6',
+          700: '#0056b3',
+          800: '#003a80',
+          900: '#001d4d',
+        },
+        
+        // Accent Colors
+        'vibrant-green': {
+          DEFAULT: '#38ce3c',
+          50: '#ecfaed',
+          100: '#d9f5db',
+          200: '#b3ebb7',
+          300: '#8de193',
+          400: '#67d76f',
+          500: '#38ce3c',
+          600: '#2da530',
+          700: '#227c24',
+          800: '#175218',
+          900: '#0c290c',
+        },
+        'fiery-rose': {
+          DEFAULT: '#ff4d6b',
+          50: '#ffecf0',
+          100: '#ffd9e1',
+          200: '#ffb3c3',
+          300: '#ff8da5',
+          400: '#ff6787',
+          500: '#ff4d6b',
+          600: '#e6003d',
+          700: '#b3002e',
+          800: '#80001f',
+          900: '#4d0010',
+        },
+        
+        // Background Colors
+        'clean-white': '#f8f9fa',
+        'rich-black': '#181824',
+        
+        // Supporting Colors
+        'turquoise': {
+          DEFAULT: '#40e0d0',
+          50: '#ecfdfb',
+          100: '#d9fbf7',
+          200: '#b3f7ef',
+          300: '#8df3e7',
+          400: '#67efdf',
+          500: '#40e0d0',
+          600: '#33b3a6',
+          700: '#26867d',
+          800: '#1a5a53',
+          900: '#0d2d2a',
+        },
+        'electric-purple': {
+          DEFAULT: '#8e32e9',
+          50: '#f5ecfe',
+          100: '#ebd9fd',
+          200: '#d7b3fb',
+          300: '#c38df9',
+          400: '#af67f7',
+          500: '#8e32e9',
+          600: '#7228ba',
+          700: '#551e8b',
+          800: '#39145c',
+          900: '#1c0a2e',
+        },
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        heading: ['Poppins', 'system-ui', 'sans-serif'],
+      },
+      fontSize: {
+        'xs': ['0.75rem', { lineHeight: '1rem' }],
+        'sm': ['0.875rem', { lineHeight: '1.25rem' }],
+        'base': ['1rem', { lineHeight: '1.5rem' }],
+        'lg': ['1.125rem', { lineHeight: '1.75rem' }],
+        'xl': ['1.25rem', { lineHeight: '1.75rem' }],
+        '2xl': ['1.5rem', { lineHeight: '2rem' }],
+        '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
+        '4xl': ['2.25rem', { lineHeight: '2.5rem' }],
+        '5xl': ['3rem', { lineHeight: '1' }],
+        '6xl': ['3.75rem', { lineHeight: '1' }],
+        '7xl': ['4.5rem', { lineHeight: '1' }],
+      },
+      spacing: {
+        '18': '4.5rem',
+        '88': '22rem',
+        '100': '25rem',
+        '128': '32rem',
+      },
+      animation: {
+        'fade-in': 'fadeIn 0.5s ease-out',
+        'fade-in-up': 'fadeInUp 0.6s ease-out',
+        'slide-in-left': 'slideInLeft 0.5s ease-out',
+        'slide-in-right': 'slideInRight 0.5s ease-out',
+        'bounce-slow': 'bounce 3s infinite',
+        'pulse-slow': 'pulse 3s ease-in-out infinite',
+        'spin-slow': 'spin 3s linear infinite',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        fadeInUp: {
+          '0%': { opacity: '0', transform: 'translateY(20px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideInLeft: {
+          '0%': { opacity: '0', transform: 'translateX(-20px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        slideInRight: {
+          '0%': { opacity: '0', transform: 'translateX(20px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+      },
+      boxShadow: {
+        'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)',
+        'medium': '0 4px 20px -2px rgba(0, 0, 0, 0.1), 0 20px 25px -5px rgba(0, 0, 0, 0.08)',
+        'strong': '0 10px 40px -10px rgba(0, 0, 0, 0.2), 0 25px 50px -12px rgba(0, 0, 0, 0.15)',
+      },
+    },
+  },
+  plugins: [],
+}

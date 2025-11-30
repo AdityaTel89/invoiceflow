@@ -1,1 +1,87 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800;900&display=swap');
+@import 'animate.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans bg-clean-white text-gray-900;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
+}
+
+@layer utilities {
+  .gradient-violet {
+    background: linear-gradient(135deg, #844fc1 0%, #8e32e9 100%);
+  }
+  
+  .gradient-blue {
+    background: linear-gradient(135deg, #1e90ff 0%, #0073e6 100%);
+  }
+  
+  .gradient-green {
+    background: linear-gradient(135deg, #38ce3c 0%, #2da530 100%);
+  }
+  
+  .gradient-bg {
+    background: linear-gradient(135deg, rgba(132, 79, 193, 0.05) 0%, rgba(142, 50, 233, 0.03) 50%, rgba(30, 144, 255, 0.05) 100%);
+  }
+  
+  .text-gradient-violet {
+    @apply bg-gradient-to-r from-violet-blue to-electric-purple bg-clip-text text-transparent;
+  }
+  
+  .text-gradient-blue {
+    @apply bg-gradient-to-r from-dodger-blue to-violet-blue bg-clip-text text-transparent;
+  }
+}
+
+
+/* Custom Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.6s ease-out;
+}
+
+.animate-pulse-slow {
+  animation: pulse 3s ease-in-out infinite;
+}
