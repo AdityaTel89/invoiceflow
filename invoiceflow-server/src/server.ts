@@ -3,6 +3,7 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import authRoutes from './routes/auth.routes.js'
 import clientRoutes from './routes/client.routes.js'
+import invoiceRoutes from './routes/invoice.routes.js'
 
 dotenv.config()
 
@@ -17,6 +18,7 @@ app.use(express.urlencoded({ extended: true }))
 // Routes
 app.use('/api/auth', authRoutes)
 app.use('/api/clients', clientRoutes)
+app.use('/api/invoices', invoiceRoutes)
 
 // Health check
 app.get('/health', (_req, res) => {

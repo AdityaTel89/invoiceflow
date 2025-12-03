@@ -1,3 +1,4 @@
+// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,61 +9,132 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  passwordHash String
-  businessName String
-  gstin        String?
-  address      String?
-  createdAt    DateTime  @default(now())
-  clients      Client[]
-  invoices     Invoice[]
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  businessName  String    @map("business_name")
+  phone         String?
+  gstin         String?   @unique
+  pan           String?
+  address       String?
+  stateCode     String?   @map("state_code")
+  stateName     String?   @map("state_name")
+  logo          String?
+  website       String?
+  annualTurnover Decimal? @map("annual_turnover") @db.Decimal(15, 2)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  invoices      Invoice[]
+  clients       Client[]
+
+  @@map("users")
 }
 
 model Client {
-  id             String    @id @default(uuid())
-  name           String
-  email          String
-  phone          String?
-  gstin          String?
-  billingAddress String?
-  userId         String
-  user           User      @relation(fields: [userId], references: [id])
-  invoices       Invoice[]
-  createdAt      DateTime  @default(now())
+  id              String    @id @default(uuid())
+  userId          String    @map("user_id")
+  name            String
+  email           String
+  phone           String?
+  gstin           String?
+  pan             String?
+  billingAddress  String?   @map("billing_address")
+  shippingAddress String?   @map("shipping_address")
+  stateCode       String?   @map("state_code")
+  stateName       String?   @map("state_name")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoices        Invoice[]
+
+  @@map("clients")
 }
 
 model Invoice {
-  id                String        @id @default(uuid())
-  invoiceNumber     String        @unique
-  date              DateTime
-  dueDate           DateTime
-  clientId          String
-  client            Client        @relation(fields: [clientId], references: [id])
-  userId            String
-  user              User          @relation(fields: [userId], references: [id])
-  items             InvoiceItem[]
-  subtotal          Float
-  taxAmount         Float
-  totalAmount       Float
-  status            String        @default("unpaid")
-  paidDate          DateTime?
-  razorpayOrderId   String?
-  razorpayPaymentId String?
-  pdfUrl            String?
-  notes             String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  id              String        @id @default(uuid())
+  invoiceNumber   String        @unique @map("invoice_number")
+  invoiceDate     DateTime      @map("invoice_date")
+  dueDate         DateTime      @map("due_date")
+  supplyDate      DateTime?     @map("supply_date")
+  userId          String        @map("user_id")
+  clientId        String        @map("client_id")
+  placeOfSupply   String        @map("place_of_supply")
+  isReverseCharge Boolean       @default(false) @map("is_reverse_charge")
+  
+  subtotal        Decimal       @db.Decimal(12, 2)
+  taxAmount       Decimal       @map("tax_amount") @db.Decimal(12, 2)
+  totalAmount     Decimal       @map("total_amount") @db.Decimal(12, 2)
+  
+  cgstAmount      Decimal       @default(0) @map("cgst_amount") @db.Decimal(12, 2)
+  sgstAmount      Decimal       @default(0) @map("sgst_amount") @db.Decimal(12, 2)
+  igstAmount      Decimal       @default(0) @map("igst_amount") @db.Decimal(12, 2)
+  cessAmount      Decimal       @default(0) @map("cess_amount") @db.Decimal(12, 2)
+  
+  roundOff        Decimal       @default(0) @map("round_off") @db.Decimal(6, 2)
+  amountInWords   String?       @map("amount_in_words")
+  
+  status          String        @default("draft")
+  paidDate        DateTime?     @map("paid_date")
+  pdfUrl          String?       @map("pdf_url")
+  notes           String?       @db.Text
+  termsConditions String?       @map("terms_conditions") @db.Text
+  
+  // E-Invoice Fields
+  irn             String?       @unique
+  irnAckNo        String?       @map("irn_ack_no")
+  irnAckDate      DateTime?     @map("irn_ack_date")
+  irnQrCode       String?       @map("irn_qr_code") @db.Text
+  
+  // E-Way Bill Fields
+  eWayBillNo      String?       @map("eway_bill_no")
+  eWayValidFrom   DateTime?     @map("eway_valid_from")
+  eWayValidTo     DateTime?     @map("eway_valid_to")
+  vehicleNo       String?       @map("vehicle_no")
+  transporterId   String?       @map("transporter_id")
+  
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client          Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  items           InvoiceItem[]
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([status])
+  @@index([invoiceDate])
+  @@map("invoices")
 }
 
 model InvoiceItem {
-  id          String  @id @default(uuid())
-  invoiceId   String
-  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  description String
-  hsnSac      String
-  quantity    Int
-  rate        Float
-  taxRate     Float
-  amount      Float
+  id           String   @id @default(uuid())
+  invoiceId    String   @map("invoice_id")
+  lineNumber   Int      @map("line_number")
+  description  String
+  hsnSac       String   @map("hsn_sac")
+  quantity     Decimal  @db.Decimal(10, 2)
+  unit         String   @default("NOS")
+  rate         Decimal  @db.Decimal(12, 2)
+  discount     Decimal  @default(0) @db.Decimal(12, 2)
+  
+  taxableValue Decimal  @map("taxable_value") @db.Decimal(12, 2)
+  taxRate      Decimal  @map("tax_rate") @db.Decimal(5, 2)
+  
+  cgstAmount   Decimal  @default(0) @map("cgst_amount") @db.Decimal(12, 2)
+  sgstAmount   Decimal  @default(0) @map("sgst_amount") @db.Decimal(12, 2)
+  igstAmount   Decimal  @default(0) @map("igst_amount") @db.Decimal(12, 2)
+  cessAmount   Decimal  @default(0) @map("cess_amount") @db.Decimal(12, 2)
+  
+  amount       Decimal  @db.Decimal(12, 2)
+  
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  invoice      Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([lineNumber])
+  @@map("invoice_items")
 }
