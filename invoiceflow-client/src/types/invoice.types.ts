@@ -90,6 +90,17 @@ export interface Invoice {
   // Relations
   client?: Client
   items?: InvoiceItem[]
+
+   razorpay_payment_link_id?: string
+  razorpay_order_id?: string
+  payment_link_url?: string
+  payment_link_created_at?: string
+  razorpay_payment_id?: string
+  
+  // 🆕 Email fields
+  email_sent?: boolean
+  email_sent_at?: string
+  last_reminder_sent_at?: string
 }
 
 export interface InvoiceItem {

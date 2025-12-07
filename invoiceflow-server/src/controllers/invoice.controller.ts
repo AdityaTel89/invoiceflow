@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase.js'
 import type { AuthRequest } from '../middleware/authMiddleware.js'
 import { generateInvoicePDF } from '../services/pdf.service.js'
 import { uploadInvoicePDF, deleteInvoicePDF } from '../services/cloudinary.service.js'
+import razorpayService from '../services/razorpay.service.js'
+import emailService from '../services/email.service.js'
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -1047,5 +1049,376 @@ export const deleteInvoice = async (req: AuthRequest, res: Response): Promise<vo
   } catch (error) {
     console.error('Delete invoice error:', error)
     res.status(500).json({ error: 'Failed to delete invoice' })
+  }
+}
+
+// ==================== RAZORPAY INTEGRATION ====================
+
+/**
+ * 🆕 Generate Razorpay Payment Link
+ */
+export const generatePaymentLink = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params
+
+    console.log('=== GENERATE PAYMENT LINK ===')
+    console.log('Invoice ID:', id)
+
+    // Get invoice with client details
+    const { data: invoice, error } = await supabase
+      .from('invoices')
+      .select(`
+        *,
+        client:clients(id, name, email, phone, gstin, billing_address)
+      `)
+      .eq('id', id)
+      .eq('user_id', req.user!.id)
+      .single()
+
+    if (error || !invoice) {
+      console.error('Invoice not found:', error)
+      res.status(404).json({ 
+        success: false,
+        error: 'Invoice not found' 
+      })
+      return
+    }
+
+    // Check if invoice is already paid
+    if (invoice.status === 'paid') {
+      res.status(400).json({ 
+        success: false,
+        error: 'Invoice is already paid' 
+      })
+      return
+    }
+
+    // Check if payment link already exists
+    if (invoice.payment_link_url && invoice.razorpay_order_id) {
+      console.log('Payment link already exists:', invoice.payment_link_url)
+      res.json({
+        success: true,
+        message: 'Payment link already exists',
+        paymentLink: invoice.payment_link_url,
+        orderId: invoice.razorpay_order_id,
+      })
+      return
+    }
+
+    // Create new payment link
+    const paymentLinkData = await razorpayService.createPaymentLink({
+      amount: parseFloat(invoice.total_amount),
+      invoiceNumber: invoice.invoice_number,
+      customerName: invoice.client.name,
+      customerEmail: invoice.client.email,
+      customerPhone: invoice.client.phone || '',
+      description: `Payment for Invoice #${invoice.invoice_number}${invoice.client.company ? ` - ${invoice.client.company}` : ''}`,
+      invoiceId: id,
+    })
+
+    console.log('Payment link created:', paymentLinkData.paymentLinkUrl)
+
+    // Update invoice with payment link details
+    const { error: updateError } = await supabase
+      .from('invoices')
+      .update({
+        razorpay_payment_link_id: paymentLinkData.paymentLinkId,
+        razorpay_order_id: paymentLinkData.orderId,
+        payment_link_url: paymentLinkData.paymentLinkUrl,
+        payment_link_created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+
+    if (updateError) {
+      console.error('Error updating invoice:', updateError)
+      res.status(500).json({ 
+        success: false,
+        error: 'Failed to save payment link' 
+      })
+      return
+    }
+
+    console.log('✅ Payment link generated successfully')
+
+    res.json({
+      success: true,
+      message: 'Payment link generated successfully',
+      paymentLink: paymentLinkData.paymentLinkUrl,
+      orderId: paymentLinkData.orderId,
+      paymentLinkId: paymentLinkData.paymentLinkId,
+    })
+  } catch (error: any) {
+    console.error('❌ Payment link generation error:', error)
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to generate payment link' 
+    })
+  }
+}
+
+// ==================== MAILGUN EMAIL INTEGRATION ====================
+
+/**
+ * 🆕 Send Invoice via Email (Mailgun)
+ */
+export const sendInvoiceEmail = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params
+
+    console.log('=== SEND INVOICE EMAIL ===')
+    console.log('Invoice ID:', id)
+
+    // Get invoice with all details including payment link
+    const { data: invoice, error } = await supabase
+      .from('invoices')
+      .select(`
+        *,
+        client:clients(id, name, email, phone, gstin, billing_address),
+        items:invoice_items(*)
+      `)
+      .eq('id', id)
+      .eq('user_id', req.user!.id)
+      .single()
+
+    if (error || !invoice) {
+      console.error('Invoice not found:', error)
+      res.status(404).json({ 
+        success: false,
+        error: 'Invoice not found' 
+      })
+      return
+    }
+
+    if (!invoice.client?.email) {
+      res.status(400).json({ 
+        success: false,
+        error: 'Client email not found' 
+      })
+      return
+    }
+
+    // Get user details for PDF generation
+    const { data: userData } = await supabase
+      .from('users')
+      .select('business_name, email, phone, gstin, pan, address, state_code, state_name')
+      .eq('id', req.user!.id)
+      .single()
+
+    if (!userData) {
+      res.status(404).json({ 
+        success: false,
+        error: 'User not found' 
+      })
+      return
+    }
+
+    const user = {
+      businessName: userData.business_name,
+      email: userData.email,
+      phone: userData.phone || '',
+      gstin: userData.gstin || '',
+      pan: userData.pan || '',
+      address: userData.address || '',
+      stateCode: userData.state_code || '',
+      stateName: userData.state_name || ''
+    }
+
+    // Generate payment link if it doesn't exist
+    let paymentLink = invoice.payment_link_url
+
+    if (!paymentLink && invoice.status !== 'paid') {
+      console.log('Payment link not found, generating new one...')
+      
+      try {
+        const paymentLinkData = await razorpayService.createPaymentLink({
+          amount: parseFloat(invoice.total_amount),
+          invoiceNumber: invoice.invoice_number,
+          customerName: invoice.client.name,
+          customerEmail: invoice.client.email,
+          customerPhone: invoice.client.phone || '',
+          description: `Payment for Invoice #${invoice.invoice_number}`,
+          invoiceId: id,
+        })
+
+        paymentLink = paymentLinkData.paymentLinkUrl
+
+        // Update invoice with payment link
+        await supabase
+          .from('invoices')
+          .update({
+            razorpay_payment_link_id: paymentLinkData.paymentLinkId,
+            razorpay_order_id: paymentLinkData.orderId,
+            payment_link_url: paymentLink,
+            payment_link_created_at: new Date().toISOString(),
+          })
+          .eq('id', id)
+
+        console.log('✅ Payment link generated:', paymentLink)
+      } catch (linkError: any) {
+        console.error('Failed to generate payment link:', linkError)
+        // Continue without payment link - don't fail the email
+      }
+    }
+
+    console.log('Sending email to:', invoice.client.email)
+    console.log('Payment Link:', paymentLink || 'None')
+
+    // 🔧 FIX: Generate PDF buffer
+    console.log('Generating PDF for email attachment...')
+    const pdfBuffer = await generateInvoicePDF(invoice as any, user)
+    console.log('✅ PDF generated, size:', pdfBuffer.length, 'bytes')
+
+    if (!pdfBuffer) {
+      res.status(500).json({ 
+        success: false,
+        error: 'Failed to generate PDF' 
+      })
+      return
+    }
+
+    // Format due date
+    const formattedDueDate = new Date(invoice.due_date).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    })
+
+    // Send email with payment link and PDF attachment
+    console.log('Sending email via Mailgun...')
+    await emailService.sendInvoice({
+      to: invoice.client.email,
+      customerName: invoice.client.name,
+      invoiceNumber: invoice.invoice_number,
+      amount: parseFloat(invoice.total_amount),
+      paymentLink: paymentLink || '',
+      pdfBuffer: pdfBuffer,
+      dueDate: formattedDueDate,
+    })
+
+    // Update invoice with email sent status
+    await supabase
+      .from('invoices')
+      .update({
+        email_sent: true,
+        email_sent_at: new Date().toISOString(),
+        status: invoice.status === 'draft' ? 'sent' : invoice.status, // Auto-update draft to sent
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+
+    console.log('✅ Invoice email sent successfully')
+
+    res.json({
+      success: true,
+      message: 'Invoice sent successfully',
+      emailSentTo: invoice.client.email,
+      paymentLink: paymentLink
+    })
+  } catch (error: any) {
+    console.error('❌ Send invoice error:', error)
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to send invoice email' 
+    })
+  }
+}
+
+/**
+ * 🆕 Send Payment Reminder
+ */
+export const sendPaymentReminder = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params
+
+    console.log('=== SEND PAYMENT REMINDER ===')
+    console.log('Invoice ID:', id)
+
+    // Get invoice with client details
+    const { data: invoice, error } = await supabase
+      .from('invoices')
+      .select(`
+        *,
+        client:clients(id, name, email)
+      `)
+      .eq('id', id)
+      .eq('user_id', req.user!.id)
+      .single()
+
+    if (error || !invoice) {
+      console.error('Invoice not found:', error)
+      res.status(404).json({ 
+        success: false,
+        error: 'Invoice not found' 
+      })
+      return
+    }
+
+    // Check if already paid
+    if (invoice.status === 'paid') {
+      res.status(400).json({ 
+        success: false,
+        error: 'Invoice is already paid. No reminder needed.' 
+      })
+      return
+    }
+
+    // Check if payment link exists
+    if (!invoice.payment_link_url) {
+      res.status(400).json({ 
+        success: false,
+        error: 'Please generate payment link first' 
+      })
+      return
+    }
+
+    // Calculate days overdue
+    const dueDate = new Date(invoice.due_date)
+    const today = new Date()
+    const daysOverdue = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
+
+    // Format due date
+    const formattedDueDate = dueDate.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    })
+
+    console.log('Sending reminder to:', invoice.client.email)
+
+    // Send reminder email
+    const emailResult = await emailService.sendPaymentReminder({
+      to: invoice.client.email,
+      customerName: invoice.client.name,
+      invoiceNumber: invoice.invoice_number,
+      amount: parseFloat(invoice.total_amount),
+      dueDate: formattedDueDate,
+      paymentLink: invoice.payment_link_url,
+      daysOverdue: daysOverdue > 0 ? daysOverdue : 0,
+    })
+
+    // Log reminder sent
+    await supabase
+      .from('invoices')
+      .update({
+        last_reminder_sent_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+
+    console.log('✅ Payment reminder sent successfully')
+
+    res.json({ 
+      success: true, 
+      message: `Payment reminder sent to ${invoice.client.email}`,
+      messageId: emailResult.messageId,
+      daysOverdue: daysOverdue > 0 ? daysOverdue : 0,
+    })
+  } catch (error: any) {
+    console.error('❌ Send reminder error:', error)
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to send payment reminder' 
+    })
   }
 }

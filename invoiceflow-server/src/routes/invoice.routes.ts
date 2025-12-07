@@ -8,7 +8,10 @@ import {
   updateInvoiceStatus,
   getInvoiceStats,
   generatePDF,
-  getInvoicePDFUrl 
+  getInvoicePDFUrl,
+  generatePaymentLink,
+  sendInvoiceEmail,
+  sendPaymentReminder
 } from '../controllers/invoice.controller.js'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 
@@ -26,8 +29,18 @@ router.get('/stats', getInvoiceStats)
 router.get('/:id/pdf', generatePDF)           // Generate and download PDF
 router.get('/:id/pdf-url', getInvoicePDFUrl)  // Get PDF URL
 
+// 🆕 Razorpay Payment Link routes (must be before /:id)
+router.post('/:id/payment-link', generatePaymentLink)  // Generate Razorpay payment link
+
+// 🆕 Mailgun Email routes (must be before /:id)
+router.post('/:id/send-email', sendInvoiceEmail)       // Send invoice via email with PDF
+router.post('/:id/send-reminder', sendPaymentReminder) // Send payment reminder
+
 // ✅ DEBUG: Log route registration
 console.log('✅ Registered route: GET /:id/pdf-url -> getInvoicePDFUrl')
+console.log('✅ Registered route: POST /:id/payment-link -> generatePaymentLink')
+console.log('✅ Registered route: POST /:id/send-email -> sendInvoiceEmail')
+console.log('✅ Registered route: POST /:id/send-reminder -> sendPaymentReminder')
 
 // List and CRUD routes
 router.get('/', getInvoices)                  // Get all invoices

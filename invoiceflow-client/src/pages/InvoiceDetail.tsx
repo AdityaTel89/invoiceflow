@@ -16,12 +16,20 @@ import {
   CheckBadgeIcon,
   EyeIcon,
   ShareIcon,
-  DocumentDuplicateIcon
+  DocumentDuplicateIcon,
+  CreditCardIcon,
+  EnvelopeIcon,
+  BellAlertIcon,
+  LinkIcon,
+  ClipboardDocumentCheckIcon
 } from '@heroicons/react/24/outline'
 import { invoiceService } from '../services/invoiceService'
 import type { Invoice } from '../types/invoice.types'
 import axios from 'axios'
 import QRCode from 'react-qr-code'
+import InvoiceStatusBadge from '../components/InvoiceStatusBadge'
+
+const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api'
 
 const STATUS_CONFIG = {
   draft: {
@@ -69,6 +77,7 @@ export default function InvoiceDetail() {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [paymentLink, setPaymentLink] = useState<string>('')
 
   useEffect(() => {
     if (id) {
@@ -82,6 +91,9 @@ export default function InvoiceDetail() {
       const data = await invoiceService.getById(id!)
       console.log('Fetched invoice:', data)
       setInvoice(data)
+      if (data.payment_link_url) {
+        setPaymentLink(data.payment_link_url)
+      }
     } catch (error: any) {
       console.error('Error fetching invoice:', error)
       alert(error.message || 'Invoice not found')
@@ -94,7 +106,7 @@ export default function InvoiceDetail() {
   const fetchUser = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await axios.get('http://localhost:5000/api/auth/me', {
+      const response = await axios.get(`${API_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       console.log('Fetched user:', response.data.user)
@@ -137,7 +149,6 @@ export default function InvoiceDetail() {
     try {
       setActionLoading('download')
       await invoiceService.downloadPDF(id!, invoice?.invoice_number || 'invoice')
-      // Success notification handled by browser download
     } catch (error: any) {
       console.error('Error downloading PDF:', error)
       alert(error.message || 'Failed to download PDF')
@@ -150,7 +161,6 @@ export default function InvoiceDetail() {
     try {
       setActionLoading('view')
       await invoiceService.viewPDF(id!)
-      // PDF opens in new tab - no additional notification needed
     } catch (error: any) {
       console.error('Error viewing PDF:', error)
       alert(error.message || 'Failed to open PDF')
@@ -164,7 +174,6 @@ export default function InvoiceDetail() {
       setActionLoading('share')
       const url = await invoiceService.sharePDF(id!)
       
-      // Better UX with success notification
       const message = `✅ PDF link copied to clipboard!\n\nYou can now paste and share this link:\n${url}`
       alert(message)
     } catch (error: any) {
@@ -186,6 +195,114 @@ export default function InvoiceDetail() {
     } catch (error: any) {
       console.error('Error duplicating invoice:', error)
       alert(error.message || 'Failed to duplicate invoice')
+      setActionLoading(null)
+    }
+  }
+
+  // 🆕 Generate Razorpay Payment Link
+  const generatePaymentLink = async () => {
+    try {
+      setActionLoading('payment-link')
+      const token = localStorage.getItem('token')
+      
+      const response = await axios.post(
+        `${API_URL}/invoices/${id}/payment-link`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      )
+
+      if (response.data.success) {
+        setPaymentLink(response.data.paymentLink)
+        await fetchInvoice() // Refresh invoice to get updated payment link
+        alert('✅ Payment link generated successfully!')
+      }
+    } catch (error: any) {
+      console.error('Error generating payment link:', error)
+      alert(error.response?.data?.error || 'Failed to generate payment link')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  // 🆕 Copy Payment Link
+  const copyPaymentLink = () => {
+    if (paymentLink) {
+      navigator.clipboard.writeText(paymentLink)
+      alert('✅ Payment link copied to clipboard!')
+    }
+  }
+
+  // 🆕 Open Payment Link
+  const openPaymentLink = () => {
+    if (paymentLink) {
+      window.open(paymentLink, '_blank')
+    }
+  }
+
+  // 🆕 Send Invoice via Email
+  const sendInvoiceEmail = async () => {
+    if (!invoice?.client?.email) {
+      alert('❌ Client email not found')
+      return
+    }
+
+    if (!confirm(`Send invoice to ${invoice.client.email}?`)) return
+
+    try {
+      setActionLoading('send-email')
+      const token = localStorage.getItem('token')
+      
+      const response = await axios.post(
+        `${API_URL}/invoices/${id}/send-email`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      )
+
+      if (response.data.success) {
+        await fetchInvoice()
+        alert(`✅ Invoice sent successfully to ${invoice.client.email}`)
+      }
+    } catch (error: any) {
+      console.error('Error sending invoice:', error)
+      alert(error.response?.data?.error || 'Failed to send invoice email')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  // 🆕 Send Payment Reminder
+  const sendPaymentReminder = async () => {
+    if (!invoice?.client?.email) {
+      alert('❌ Client email not found')
+      return
+    }
+
+    if (!confirm(`Send payment reminder to ${invoice.client.email}?`)) return
+
+    try {
+      setActionLoading('send-reminder')
+      const token = localStorage.getItem('token')
+      
+      const response = await axios.post(
+        `${API_URL}/invoices/${id}/send-reminder`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      )
+
+      if (response.data.success) {
+        await fetchInvoice()
+        alert(`✅ Payment reminder sent to ${invoice.client.email}`)
+      }
+    } catch (error: any) {
+      console.error('Error sending reminder:', error)
+      alert(error.response?.data?.error || 'Failed to send payment reminder')
+    } finally {
       setActionLoading(null)
     }
   }
@@ -218,7 +335,6 @@ export default function InvoiceDetail() {
     }).format(numAmount)
   }
 
-  // Check if inter-state based on stored GST amounts
   const isInterState = () => {
     if (!invoice) return false
     const igstAmount = parseFloat(String(invoice.igst_amount || 0))
@@ -265,10 +381,10 @@ export default function InvoiceDetail() {
               <h1 className="text-3xl font-bold text-gray-900">
                 {invoice.invoice_number}
               </h1>
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${statusConfig?.color}`}>
-                <StatusIcon className="w-4 h-4" />
-                {statusConfig?.label}
-              </span>
+              <InvoiceStatusBadge 
+                status={invoice.status} 
+                dueDate={invoice.due_date} 
+              />
             </div>
             <p className="text-gray-600">
               Created on {formatDateTime(invoice.created_at)}
@@ -651,6 +767,142 @@ export default function InvoiceDetail() {
 
         {/* Sidebar - Additional Info */}
         <div className="space-y-6">
+          {/* 🆕 Payment Link Card */}
+          {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.05 }}
+              className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl shadow-lg border-2 border-violet-200 p-6"
+            >
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <CreditCardIcon className="w-6 h-6 text-violet-600" />
+                Payment Options
+              </h3>
+              
+              {!paymentLink ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-600">
+                    Generate a secure payment link to send to your client
+                  </p>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={generatePaymentLink}
+                    disabled={actionLoading === 'payment-link'}
+                    className="w-full bg-violet-600 text-white px-4 py-3 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {actionLoading === 'payment-link' ? (
+                      <>
+                        <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <LinkIcon className="w-5 h-5" />
+                        Generate Payment Link
+                      </>
+                    )}
+                  </motion.button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="bg-white border-2 border-violet-300 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 mb-1">Payment Link</p>
+                    <p className="text-sm text-gray-700 font-mono break-all">
+                      {paymentLink}
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={copyPaymentLink}
+                      className="bg-white text-violet-600 border-2 border-violet-600 px-3 py-2 rounded-lg font-medium hover:bg-violet-50 transition-all flex items-center justify-center gap-2"
+                    >
+                      <ClipboardDocumentCheckIcon className="w-5 h-5" />
+                      Copy
+                    </motion.button>
+                    
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={openPaymentLink}
+                      className="bg-violet-600 text-white px-3 py-2 rounded-lg font-medium hover:bg-violet-700 transition-all flex items-center justify-center gap-2"
+                    >
+                      <LinkIcon className="w-5 h-5" />
+                      Open
+                    </motion.button>
+                  </div>
+
+                  {/* Send Invoice & Reminder Buttons */}
+                  <div className="pt-3 border-t border-violet-200 space-y-2">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={sendInvoiceEmail}
+                      disabled={actionLoading === 'send-email'}
+                      className="w-full bg-green-600 text-white px-4 py-2.5 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {actionLoading === 'send-email' ? (
+                        <>
+                          <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <EnvelopeIcon className="w-5 h-5" />
+                          Send Invoice via Email
+                        </>
+                      )}
+                    </motion.button>
+
+                    {invoice.status === 'overdue' && (
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={sendPaymentReminder}
+                        disabled={actionLoading === 'send-reminder'}
+                        className="w-full bg-orange-600 text-white px-4 py-2.5 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        {actionLoading === 'send-reminder' ? (
+                          <>
+                            <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <BellAlertIcon className="w-5 h-5" />
+                            Send Payment Reminder
+                          </>
+                        )}
+                      </motion.button>
+                    )}
+                  </div>
+
+                  {invoice.email_sent && invoice.email_sent_at && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <p className="text-sm text-green-800 flex items-center gap-2">
+                        <CheckCircleIcon className="w-4 h-4" />
+                        Last sent: {formatDateTime(invoice.email_sent_at)}
+                      </p>
+                    </div>
+                  )}
+
+                  {invoice.last_reminder_sent_at && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                      <p className="text-sm text-orange-800 flex items-center gap-2">
+                        <BellAlertIcon className="w-4 h-4" />
+                        Reminder sent: {formatDateTime(invoice.last_reminder_sent_at)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          )}
+
           {/* Payment Status Card */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
@@ -662,10 +914,11 @@ export default function InvoiceDetail() {
             <div className="space-y-3">
               <div>
                 <p className="text-sm text-gray-600">Status</p>
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium mt-1 ${statusConfig?.color}`}>
-                  <StatusIcon className="w-4 h-4" />
-                  {statusConfig?.label}
-                </span>
+                <InvoiceStatusBadge 
+                  status={invoice.status} 
+                  dueDate={invoice.due_date}
+                  className="mt-1" 
+                />
               </div>
               <div>
                 <p className="text-sm text-gray-600">Total Amount</p>
