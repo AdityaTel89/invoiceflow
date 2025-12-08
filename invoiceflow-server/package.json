@@ -4,13 +4,15 @@
   "type": "module",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "nodemon --exec tsx src/server.ts",
-    "dev:tsx": "tsx watch src/server.ts",
+    "dev": "nodemon --exec tsx src/index.ts",
+    "dev:tsx": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "node dist/index.js",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
-    "format": "prettier --write \"src/**/*.ts\""
+    "format": "prettier --write \"src/**/*.ts\"",
+     "test:db": "tsx test-connection.ts",
+    "test:env": "tsx -r dotenv/config test-connection.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.86.0",
@@ -19,9 +21,12 @@
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.2.1",
     "form-data": "^4.0.5",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "mailgun.js": "^12.3.1",
+    "multer": "^2.0.2",
     "nodemailer": "^7.0.11",
     "puppeteer": "^24.31.0",
     "qrcode": "^1.5.4",
@@ -31,8 +36,9 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",
-    "@types/express": "^4.17.21",
+    "@types/express": "^4.17.25",
     "@types/jsonwebtoken": "^9.0.7",
+    "@types/multer": "^2.0.0",
     "@types/node": "^22.19.1",
     "@types/nodemailer": "^7.0.4",
     "@types/qrcode": "^1.5.6",
@@ -45,6 +51,6 @@
     "nodemon": "^3.1.7",
     "prettier": "^3.3.3",
     "tsx": "^4.21.0",
-    "typescript": "^5.6.2"
+    "typescript": "^5.9.3"
   }
 }

@@ -76,4 +76,48 @@ export const deleteInvoicePDF = async (publicId: string): Promise<void> => {
   }
 }
 
+export const uploadKYCDocument = async (
+  fileBuffer: Buffer,
+  userId: string,
+  documentType: string,
+  originalFilename: string
+): Promise<{ secure_url: string; public_id: string; bytes: number }> => {
+  console.log('=== CLOUDINARY KYC UPLOAD START ===')
+  console.log('Document Type:', documentType)
+  console.log('User ID:', userId)
+  console.log('File Size:', fileBuffer.length, 'bytes')
+
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: `invoiceflow/kyc/${userId}`,
+        public_id: `${documentType}_${Date.now()}`,
+        resource_type: 'auto', // Handles both images and PDFs
+        access_mode: 'public',
+        type: 'upload',
+      },
+      (error, result) => {
+        if (error) {
+          console.error('❌ Cloudinary KYC upload error:', error)
+          reject(error)
+        } else if (result) {
+          console.log('✅ KYC document uploaded successfully')
+          console.log('   URL:', result.secure_url)
+          
+          resolve({
+            secure_url: result.secure_url,
+            public_id: result.public_id,
+            bytes: result.bytes
+          })
+        } else {
+          reject(new Error('Upload failed - no result'))
+        }
+      }
+    )
+
+    const bufferStream = Readable.from(fileBuffer)
+    bufferStream.pipe(uploadStream)
+  })
+}
+
 export default cloudinary

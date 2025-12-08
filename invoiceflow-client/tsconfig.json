@@ -18,5 +18,5 @@
     "noUncheckedSideEffectImports": true,
     "verbatimModuleSyntax": false
   },
-  "include": ["src"]
+  "include": ["src", "../invoiceflow-server/src/types/profile.types.ts"]
 }

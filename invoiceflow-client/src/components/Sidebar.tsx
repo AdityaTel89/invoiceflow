@@ -12,10 +12,11 @@ import {
   ChevronRightIcon,
   ChevronDownIcon,
   DocumentDuplicateIcon,
-  ClockIcon,
+
   PaperAirplaneIcon,
   CheckCircleIcon,
-  ExclamationCircleIcon
+  ExclamationCircleIcon,
+    
 } from '@heroicons/react/24/outline'
 
 interface SidebarProps {

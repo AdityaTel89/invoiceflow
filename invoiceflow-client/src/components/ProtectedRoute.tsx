@@ -1,20 +1,31 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import type { ReactNode } from 'react'
 
-export default function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth()
+interface ProtectedRouteProps {
+  children: React.ReactNode
+  adminOnly?: boolean
+}
+
+export default function ProtectedRoute({ children, adminOnly = false }: ProtectedRouteProps) {
+  const { user, loading, isAuthenticated, isAdmin } = useAuth()
+  const location = useLocation()
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-xl text-gray-600">Loading...</div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-blue"></div>
       </div>
     )
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />
+  if (!isAuthenticated) {
+    // Redirect to login with return URL
+    return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  if (adminOnly && !isAdmin) {
+    // Redirect non-admin users trying to access admin routes
+    return <Navigate to="/dashboard" replace />
   }
 
   return <>{children}</>

@@ -24,12 +24,52 @@ export interface User {
   id: string
   email: string
   businessName: string
+  isAdmin?: boolean
+  kycStatus?: string
+  linkedAccountId?: string | null
   gstin?: string | null
   address?: string | null
+  phone?: string | null
+  createdAt?: string
 }
 
 export interface AuthResponse {
   message: string
   user: User
   token: string
+}
+
+export interface Client {
+  id: string
+  name: string
+  email: string
+  phone?: string
+  address?: string
+  gstin?: string
+  pan?: string
+  createdAt: string
+}
+
+export interface Invoice {
+  id: string
+  invoiceNumber: string
+  clientId: string
+  clientName?: string
+  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'
+  issueDate: string
+  dueDate: string
+  subtotal: number
+  tax: number
+  totalAmount: number
+  items: InvoiceItem[]
+  notes?: string
+  createdAt: string
+}
+
+export interface InvoiceItem {
+  id: string
+  description: string
+  quantity: number
+  rate: number
+  amount: number
 }

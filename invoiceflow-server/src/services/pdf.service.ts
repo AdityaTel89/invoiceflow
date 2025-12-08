@@ -236,8 +236,7 @@ const generateInvoiceHTML = async (invoice: Invoice, user: User): Promise<string
           font-weight: 600;
           margin-bottom: 4px;
           text-transform: uppercase;
-          background: ${invoice.status === 'paid' ? '#d1fae5' : invoice.status === 'draft' ? '#e5e7eb' : '#dbeafe'};
-          color: ${invoice.status === 'paid' ? '#065f46' : invoice.status === 'draft' ? '#374151' : '#1e40af'};
+         
         }
         
         .invoice-meta .dates p {

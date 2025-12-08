@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Outlet, Link } from 'react-router-dom'
+import { Outlet, Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { 
   Bars3Icon, 
   BellIcon, 
   MagnifyingGlassIcon,
-  PlusIcon
+  PlusIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline'
 import Sidebar from './Sidebar'
 import { useAuth } from '../hooks/useAuth'
@@ -13,6 +14,10 @@ import { useAuth } from '../hooks/useAuth'
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { user, logout } = useAuth()
+  const location = useLocation()
+
+  // Check if current route is admin
+  const isAdminRoute = location.pathname.startsWith('/admin')
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-clean-white to-violet-blue-50">
@@ -37,6 +42,14 @@ export default function DashboardLayout() {
               <h1 className="lg:hidden text-xl font-bold text-gradient-violet">
                 InvoiceFlow
               </h1>
+
+              {/* Admin Badge (if on admin route) */}
+              {isAdminRoute && (
+                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-violet-500 to-purple-500 text-white rounded-lg text-sm font-medium shadow-soft">
+                  <ShieldCheckIcon className="w-4 h-4" />
+                  <span>Admin Mode</span>
+                </div>
+              )}
             </div>
 
             {/* Center Section - Search Bar */}
@@ -45,7 +58,7 @@ export default function DashboardLayout() {
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="search"
-                  placeholder="Search invoices, clients..."
+                  placeholder={isAdminRoute ? "Search users, logs..." : "Search invoices, clients..."}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-blue focus:border-transparent transition-all"
                 />
               </div>
@@ -53,28 +66,45 @@ export default function DashboardLayout() {
 
             {/* Right Section */}
             <div className="flex items-center gap-3">
-              {/* Quick Action - New Invoice */}
-              <Link to="/invoices/create">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="hidden sm:flex items-center gap-2 gradient-violet text-white px-4 py-2 rounded-lg font-medium shadow-medium hover:shadow-strong transition-all duration-200"
-                >
-                  <PlusIcon className="w-5 h-5" />
-                  <span>New Invoice</span>
-                </motion.button>
-              </Link>
+              {/* Quick Action - New Invoice (hide in admin mode) */}
+              {!isAdminRoute && (
+                <>
+                  <Link to="/invoices/create">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="hidden sm:flex items-center gap-2 gradient-violet text-white px-4 py-2 rounded-lg font-medium shadow-medium hover:shadow-strong transition-all duration-200"
+                    >
+                      <PlusIcon className="w-5 h-5" />
+                      <span>New Invoice</span>
+                    </motion.button>
+                  </Link>
 
-              {/* Mobile Quick Action */}
-              <Link to="/invoices/create" className="sm:hidden">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="p-2 gradient-violet text-white rounded-lg shadow-medium"
-                >
-                  <PlusIcon className="w-5 h-5" />
-                </motion.button>
-              </Link>
+                  {/* Mobile Quick Action */}
+                  <Link to="/invoices/create" className="sm:hidden">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="p-2 gradient-violet text-white rounded-lg shadow-medium"
+                    >
+                      <PlusIcon className="w-5 h-5" />
+                    </motion.button>
+                  </Link>
+                </>
+              )}
+
+              {/* Admin Quick Action (show in admin mode) */}
+              {isAdminRoute && (
+                <Link to="/dashboard">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="hidden sm:flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg font-medium shadow-medium hover:shadow-strong transition-all duration-200"
+                  >
+                    <span>Back to Dashboard</span>
+                  </motion.button>
+                </Link>
+              )}
 
               {/* Notifications */}
               <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors relative">
@@ -85,11 +115,25 @@ export default function DashboardLayout() {
               {/* User Menu */}
               <div className="flex items-center gap-3">
                 <div className="hidden sm:block text-right">
-                  <p className="text-sm font-medium text-gray-900">{user?.businessName}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-gray-900">{user?.businessName}</p>
+                    {user?.isAdmin && (
+                      <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-semibold">
+                        Admin
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-500">{user?.email}</p>
                 </div>
-                <div className="w-10 h-10 rounded-full gradient-violet flex items-center justify-center text-white font-bold cursor-pointer hover:shadow-lg transition-all">
-                  {user?.businessName?.charAt(0).toUpperCase()}
+                <div className="relative">
+                  <div className="w-10 h-10 rounded-full gradient-violet flex items-center justify-center text-white font-bold cursor-pointer hover:shadow-lg transition-all">
+                    {user?.businessName?.charAt(0).toUpperCase()}
+                  </div>
+                  {user?.isAdmin && (
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center border-2 border-white">
+                      <ShieldCheckIcon className="w-3 h-3 text-white" />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -111,11 +155,21 @@ export default function DashboardLayout() {
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="search"
-                placeholder="Search..."
+                placeholder={isAdminRoute ? "Search..." : "Search invoices..."}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-blue focus:border-transparent"
               />
             </div>
           </div>
+
+          {/* Mobile Admin Badge */}
+          {isAdminRoute && (
+            <div className="md:hidden px-4 pb-3">
+              <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-violet-500 to-purple-500 text-white rounded-lg text-sm font-medium shadow-soft justify-center">
+                <ShieldCheckIcon className="w-4 h-4" />
+                <span>Admin Mode</span>
+              </div>
+            </div>
+          )}
         </header>
 
         {/* Page Content */}
